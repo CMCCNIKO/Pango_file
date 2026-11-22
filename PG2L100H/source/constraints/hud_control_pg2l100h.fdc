@@ -1,0 +1,24 @@
+# RK HUD CDC：仅异步事件发起寄存器到同步链；第二级保持正常时序检查。
+# PDS FDC导入先于位拆分，向量为聚合对象；发起toggle只直达第一级D。
+set_false_path -from [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_request_toggle}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_request_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_snapshot_toggle}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_snapshot_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_snapshot_seen}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_snapshot_ack_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.reg_toggle}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.reg_toggle_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.reg_ack_toggle}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.reg_ack_sync[*]}]
+# 像素域同步释放状态回传PCIe域ready：只直达pixel_up同步链第一级。
+set_false_path -from [get_cells -hierarchical {*hud_control_subsystem_Inst_control.reg_pixel_reset_sync[*]}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_pixel_up_sync[*]}]
+
+# 32bit请求保持至真实帧提交回执，toggle两级同步后再捕获payload。
+# 上界为一个74.25MHz像素周期；仅异步hold关系豁免。
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_request_payload[*]}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.command_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_request_payload[*]}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.command_o[*]}]
+# 176-bit combined scene/time/behavior snapshot; the full payload is held in flight.
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.reg_payload[*]}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.command_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.reg_payload[*]}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_ext.command_o[*]}]
+
+# 59bit真实HUD状态（含帧锁存扩展序号）保持至seen回传；PCIe域125MHz。
+set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_snapshot_payload[*]}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.snapshot_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.reg_snapshot_payload[*]}] -to [get_cells -hierarchical {*hud_control_cdc_Inst_cdc.snapshot_o[*]}]
+
+# 联合复位异步断言，只豁免本地3级释放同步器的clear pin，不豁免D。
+set_false_path -to [get_pins -hierarchical {*hud_control_subsystem_Inst_control.reg_pcie_reset_sync*.C *hud_control_subsystem_Inst_control.reg_pixel_reset_sync*.C}]

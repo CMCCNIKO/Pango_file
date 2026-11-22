@@ -1,0 +1,16 @@
+# Action mailbox: constrain stable payload; only asynchronous first stages are cut.
+set_false_path -from [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.src_toggle}] -to [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.dst_toggle_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.dst_seen}] -to [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.src_ack_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.dst_reset_sync[*]}] -to [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.src_online_sync[*]}]
+set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.src_payload[*]}] -to [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.dst_payload_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.src_payload[*]}] -to [get_cells -hierarchical {*u_vehicle_behavior_action_cdc.dst_payload_o[*]}]
+
+# The display now uses the 176-bit HUD extension mailbox constrained in hud_control.
+# Registered Gray time changes once per millisecond. Bound each source-to-first-stage
+# path to one 27 MHz cycle, far below the update interval; later stages stay timed.
+set_max_delay 37.037 -datapath_only -from [get_cells -hierarchical {*u_vehicle_behavior_timebase.reg_timestamp_gray[*]}] -to [get_cells -hierarchical {*u_vehicle_behavior_timebase.reg_gray_sync0[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*u_vehicle_behavior_timebase.reg_timestamp_gray[*]}] -to [get_cells -hierarchical {*u_vehicle_behavior_timebase.reg_gray_sync0[*]}]
+
+# Only asynchronous clear pins of the reset release chains are exempted.
+# Their local D paths and the released reset to business registers remain timed.
+set_false_path -to [get_pins -hierarchical {*u_vehicle_behavior_action_cdc.src_reset_sync*.C *u_vehicle_behavior_action_cdc.dst_reset_sync*.C *u_vehicle_behavior_timebase.reg_ref_reset_sync*.C *u_vehicle_behavior_timebase.reg_dst_reset_sync*.C}]

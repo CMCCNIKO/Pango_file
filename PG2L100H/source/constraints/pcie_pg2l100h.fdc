@@ -1,0 +1,61 @@
+# PG2L100H PCIe T02 provisional timing constraints
+# 目标工程：PG2L100H-6FBG676；PCIe refclk/PERST/RX/TX 顶层端口已独立命名。
+# 参考例程已提供 refclk/PERST 候选 LOC；PCIe 生成时钟层级和 HSST lane 资源
+# 仍必须依据当前板卡原理图/PDS GUI 确认；RX/TX 的 HSST 资源未硬编码。
+create_clock -name {pcie_ref_clk} [get_ports {i_pcie_ref_clk_p}] -period {10.000} -waveform {0.000 5.000}
+# HSST 参考时钟经过专用输出/BUFG，顶层 refclk 不会自动传播到内部复位控制器。
+# 按 PDS2025.2 ips2l_pcie_gen2-1.2c/createFiles.tcl 的官方时钟源对象约束。
+# P_REFCK2CORE_0 就是 ref_clk/BUFG 输出；周期与相位不变，保留内部同步路径检查。
+create_clock -name {pcie_ref_core_clk} [get_pins {u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_HSSTLP_PCIE_SOFT_PHY/P_REFCK2CORE_0}] -period {10.000} -waveform {0.000 5.000}
+# 当前 PCIe IP 模板对应的逻辑时钟层级按参考工程 pango_pcie_top.fdc 改到本工程实例路径。
+# IP 配置目标 Gen2：pclk=250MHz、pclk_div2=125MHz。板上 link 可能降速；IP逻辑时钟仍按配置核对。
+create_clock -name {pcie_pclk} [get_pins {u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_HSSTLP_PCIE_SOFT_PHY.pclk}] -period {4.000} -waveform {0.000 2.000}
+create_clock -name {pcie_pclk_div2} [get_pins {u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_HSSTLP_PCIE_SOFT_PHY.pclk_div2}] -period {8.000} -waveform {0.000 4.000}
+# PCIe refclk、DDR ref_clk_p/n、SFP i_p_refckp/n_1 保持独立，不设置跨域时钟组。
+
+# 官方 PCIe 内部单比特 CDC：只切异步信号到第一拍的数据脚，不切 sig_async_ff -> sig_synced。
+# D* 同时兼容编译态 D[0] 和综合态 D；末级不匹配 C/CE/CLK，实例名不匹配第二级。
+# 结构依据：ipcore/PCIe_IP/rtl/hsst_pipe/hsst_rst_sync_v1_0.v:18-32，
+# ips_hsst_rst_sync_v1_0.v:18-32；两者均为同一目标时钟的两级同步器。
+# pclk_div2 -> ref_clk：hsstl_rst4mcrsw_v1_0.v:121 的 rate 同步；
+# hsstl_rst4mcrsw_rx_init_v1_0.v:47 的各 lane word-align 同步。
+set_false_path -from [get_clocks {pcie_pclk_div2}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_HSSTLP_PCIE_SOFT_PHY/hsst_pciex4_rst/rate_multi_sw_sync/sig_async_ff/D*}]
+set_false_path -from [get_clocks {pcie_pclk_div2}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_HSSTLP_PCIE_SOFT_PHY/hsst_pciex4_rst/hsst_rx_rst_mcrsw/genblk1*.hsst_rst4mcrsw_rx_init/word_align_multi_sw_sync/sig_async_ff/D*}]
+# ref_clk -> pclk_div2：ips2l_pcie_soft_phy_v1_2c.v:909-926 的 rate-done/lane-ready 两级同步；
+# ips2l_pcie_hard_ctrl_v1_2b.v:475 的 tx-rst-done 两级同步。生成块通配仅覆盖相同首级 D，
+# 允许综合合并等价 lane；不引用被合并后可能消失的某一路寄存器。
+set_false_path -from [get_clocks {pcie_ref_core_clk}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_HSSTLP_PCIE_SOFT_PHY/hsst_ch_ready_sync*.hsst_pciex4_sync_hsst_ch_ready/sig_async_ff/D*}]
+set_false_path -from [get_clocks {pcie_ref_core_clk}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_HSSTLP_PCIE_SOFT_PHY/hsst_pciex4_sync_rate_done/sig_async_ff/D*}]
+set_false_path -from [get_clocks {pcie_ref_core_clk}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_PCIE_HARD_CTRL/tx_rst_done_sync/sig_async_ff/D*}]
+# ips2l_pcie_soft_phy_v1_2c.v:833-842：tx_rst_done_ref_ff/ff2 同样构成两级采样；只切第一拍 D。
+set_false_path -from [get_clocks {pcie_ref_core_clk}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_HSSTLP_PCIE_SOFT_PHY/tx_rst_done_ref_ff/D*}]
+
+# 官方复位同步释放链：sig_async 固定 1，两级寄存器异步清零、目标时钟同步释放。
+# ips2l_pcie_soft_phy_v1_2c.v:821 的 phy_rst_n 来自 pclk_div2；只豁免这两级 C 的 recovery/removal。
+set_false_path -from [get_clocks {pcie_pclk_div2}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_HSSTLP_PCIE_SOFT_PHY/phy_rstn_sync/sig_async_ff/C u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_HSSTLP_PCIE_SOFT_PHY/phy_rstn_sync/sig_synced/C}]
+# ips2l_pcie_hard_ctrl_v1_2b.v:424-426：button/perst 已由外层 ref_clk 域同步，mem_clk 再两级释放。
+# 仅切 mem_button_rstn_sync 两级 C；保留级间 D 以及同步释放输出到业务逻辑的检查。
+set_false_path -from [get_clocks {pcie_ref_core_clk}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_PCIE_HARD_CTRL/mem_button_rstn_sync/sig_async_ff/C u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_PCIE_HARD_CTRL/mem_button_rstn_sync/sig_synced/C}]
+# ips2l_pcie_hard_ctrl_v1_2b.v:385-396：core_rst_n 从 pclk_div2 异步清零
+# mem_clk(pclk) 的 core_rst_n_mem_r1/core_rst_n_mem，两级 D 依次移入 1 后释放 RAM 复位。
+# 只豁免两级 C；r1 -> mem 的 D 和 core_rst_n_mem 到业务寄存器的 recovery/removal 继续检查。
+set_false_path -from [get_clocks {pcie_pclk_div2}] -to [get_pins -hierarchical {u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_PCIE_HARD_CTRL/core_rst_n_mem_r1/C u_pcie_top/u_pcie_dma_subsystem/u_pcie_ip/U_IPS2L_PCIE_TOP/U_IPS2L_PCIE_HARD_CTRL/core_rst_n_mem/C}]
+
+# 候选管脚来自 4_15_PCIE_DMA/pnr/pango_pcie_top.fdc：perst_n=G24、button_rst_n=C22、ref_clk_p=F11、ref_clk_n=E11。
+# 当前 top_design 的 i_button_rst_n 已由既有 HDMI/以太网 FDC 绑定 C22；以下三项可作为 PCIe 端口候选，最终需 PDS GUI/当前板卡原理图确认。
+define_attribute {p:i_pcie_ref_clk_p} {PAP_IO_DIRECTION} {Input}
+define_attribute {p:i_pcie_ref_clk_p} {PAP_IO_LOC} {F11}
+define_attribute {p:i_pcie_ref_clk_p} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:i_pcie_ref_clk_p} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:i_pcie_ref_clk_n} {PAP_IO_DIRECTION} {Input}
+define_attribute {p:i_pcie_ref_clk_n} {PAP_IO_LOC} {E11}
+define_attribute {p:i_pcie_ref_clk_n} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:i_pcie_ref_clk_n} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:i_pcie_perst_n} {PAP_IO_DIRECTION} {Input}
+define_attribute {p:i_pcie_perst_n} {PAP_IO_LOC} {G24}
+define_attribute {p:i_pcie_perst_n} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:i_pcie_perst_n} {PAP_IO_STANDARD} {LVCMOS33}
+
+# 参考 FDC 没有独立 rxp/rxn/txp/txn 的 PAP_IO_LOC；x4 HSST 采用内部 HSSTLP_364_918 的 U0/U1/U2/U3 lane 资源。
+# 当前主工程 SFP 已占 HSSTLP_364_0:U2，因此不把参考 lane LOC 直接写入当前 PCIe IP，待 PDS elaboration 确认资源可共存后补入。
+

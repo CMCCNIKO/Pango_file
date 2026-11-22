@@ -1,0 +1,23 @@
+# PDS build outputs and local session logs
+/*/prj_tasks/
+/*/design_workspace/
+/*/log/
+/*/logbackup/
+*.log
+*.sbit
+/PG2L100H/ports_defalut_attribute.txt
+
+# Local vendor files pending redistribution review. Keep IP configurations.
+/PG2L100H/ipcore/**/*
+!/PG2L100H/ipcore/**/
+!/PG2L100H/ipcore/**/*.idf
+/PG2L100H/source/pcie_ref/
+/PG2L200H/host/ipcore/
+/PG2L200H/model/ipcore/
+/PG2L200H/vendor/
+/PG2L200H/host/rtl/monitor/hdmi_rx.v
+/PG2L200H/host/rtl/monitor/i2c_adv7611_cfg.v
+/PG2L200H/host/rtl/monitor/i2c_dri.v
+/PG2L200H/host/rtl/camera/ov5640_i2c_dri.v
+/PG2L200H/host/rtl/camera/ov5640_i2c_rgb565_cfg.v
+*.vp

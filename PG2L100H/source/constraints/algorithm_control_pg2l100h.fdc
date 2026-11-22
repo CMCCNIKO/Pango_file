@@ -1,0 +1,65 @@
+# HDMI control v2 CDC. Only exact asynchronous launch/capture pairs are excepted.
+# FDC import precedes register bit splitting; sync[1:0] is an aggregate cell.
+# A toggle launch has a direct data path only to sync[0]. sync[0]->sync[1]
+# starts at sync[0], not at the toggle; the second stage remains normally timed.
+set_false_path -from [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.flag_request}] -to [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.reg_request_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.flag_ack}] -to [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.reg_ack_sync[*]}]
+
+# 64-bit command mailbox is stable from request launch until frame-applied ACK.
+# Two request synchronizer stages precede payload capture. One pixel-period
+# datapath bound is conservative; only the asynchronous hold relation is waived.
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.reg_payload[*]}] -to [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.reg_pending_payload[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.reg_payload[*]}] -to [get_cells -hierarchical {*algo_config_cdc_v2_Inst_config.reg_pending_payload[*]}]
+
+# Source-presence metadata: pixel frame-ID mailbox request/ACK and DDR mask
+# response/ACK are separate stable-payload toggle handshakes. Both preserve
+# unsent payloads while busy. A mismatched frame ID never sets metadata valid.
+set_false_path -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.flag_frame_request}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_frame_request_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.flag_frame_ack}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_frame_ack_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.flag_response}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_response_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.flag_ack}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_ack_sync[*]}]
+
+# Frame-ID capture is in 125MHz DDR domain after a two-stage request sync.
+set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_frame_payload[*]}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_ddr_frame[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_frame_payload[*]}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_ddr_frame[*]}]
+
+# Response frame-ID compare and mask capture are in 74.25MHz pixel domain.
+# The 36-bit response reaches both the frame-ID compare and the stored mask/
+# valid enable cones; all listed endpoints are real capture registers.
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_response_payload[*]}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.source_present_o[*] *quad_frame_content_cdc_Inst_source_presence.source_present_valid_o}]
+set_false_path -hold -from [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.reg_response_payload[*]}] -to [get_cells -hierarchical {*quad_frame_content_cdc_Inst_source_presence.source_present_o[*] *quad_frame_content_cdc_Inst_source_presence.source_present_valid_o}]
+
+# Retain existing asynchronous clear exception only on the two reset-release
+# synchronizers' clear pins. Never except their D inputs or normal data paths.
+set_false_path -to [get_pins -hierarchical {u_video_algorithm_top.algo_net_reset_sync*.C u_video_algorithm_top.algo_pixel_reset_sync*.C}]
+
+# ISP control CDC. The ISP payload is held stable from the source request
+# toggle until the destination frame-boundary apply/ACK. Only the first
+# synchronizer stage is asynchronous; the stage0-to-stage1 paths remain timed.
+set_false_path -from [get_cells -hierarchical {*isp_control_Inst_control.adaptive_enable_o}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.adaptive_enable_sync[*]}]
+# v026天气链复用上面的ISP两级同步器，再在像素帧边界锁存。
+# 旧night-light独立同步器已删除，不保留不存在的对象或新增天气路径例外。
+set_false_path -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.flag_request}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_request_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.flag_ack}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_ack_sync[*]}]
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_payload[*]}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_pending_payload[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_payload[*]}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_pending_payload[*]}]
+# The return mailbox is captured in the 125 MHz control domain after ACK sync.
+# Depending on synthesis sharing, the launch registers are either exposed as
+# active_config_o/config_epoch_o or retained as reg_ack_active_config/
+# reg_ack_config_epoch. Cover both legal netlist forms so the stable bundled
+# payload is constrained as a mailbox rather than timed as a synchronous
+# HDMI-pixel-to-control path.
+set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.active_config_o[*] *isp_config_cdc_Inst_config.reg_ack_active_config[*] *isp_config_cdc_Inst_config.config_epoch_o[*] *isp_config_cdc_Inst_config.reg_ack_config_epoch[*]}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.src_active_snapshot_o[*] *isp_config_cdc_Inst_config.src_config_epoch_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.active_config_o[*] *isp_config_cdc_Inst_config.reg_ack_active_config[*] *isp_config_cdc_Inst_config.config_epoch_o[*] *isp_config_cdc_Inst_config.reg_ack_config_epoch[*]}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.src_active_snapshot_o[*] *isp_config_cdc_Inst_config.src_config_epoch_o[*]}]
+
+# v025 live telemetry is an independent stable bundled-data toggle mailbox.
+# v026 extends the preserved lower 617 bits with 160 actual-weather bits.
+# The pixel source holds all 777 payload bits until the control-domain ACK
+# has crossed back through two flops. Only the asynchronous toggle launches
+# are excepted; synchronizer stage0 -> stage1 remains normally timed.
+set_false_path -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.flag_live_request}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_live_request_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.flag_live_ack}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_live_ack_sync[*]}]
+# Capture follows two request-sync clocks. Bound the stable data flight to
+# one 125 MHz receiver period, and exclude unrelated asynchronous hold phase.
+set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_live_payload[*]}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.src_live_payload_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*isp_config_cdc_Inst_config.reg_live_payload[*]}] -to [get_cells -hierarchical {*isp_config_cdc_Inst_config.src_live_payload_o[*]}]

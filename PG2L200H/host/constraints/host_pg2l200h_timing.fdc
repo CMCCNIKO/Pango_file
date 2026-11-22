@@ -1,0 +1,16 @@
+create_clock -name {sys_clk} [get_ports {sys_clk}] -period {20} -waveform {0 10}
+create_generated_clock -name {f14_clk75} -source [get_ports {sys_clk}] [get_pins {u_f14_clock/u_pll/clkout0}] -master_clock [get_clocks {sys_clk}] -multiply_by {3} -divide_by {2}
+create_clock -name {i2c_sys_clk} [get_pins {u_adv7611_init/adv_clk}] -period {20} -waveform {0 10}
+create_generated_clock -name {i2c_dri_clk} -source [get_pins {u_adv7611_init/adv_clk}] [get_pins {u_adv7611_init/u_i2c_dri/dri_clk}] -divide_by {50}
+create_generated_clock -name {cam_sccb_dri_clk} -source [get_ports {sys_clk}] [get_pins {u_ov5640_sccb_init/u_i2c/dri_clk}] -master_clock [get_clocks {sys_clk}] -divide_by {50}
+create_clock -name {hdmi_clk_in} [get_ports {hdmi_clk_in}] -period {6.734007} -waveform {0 3.367004}
+# OV5640 640x320 RGB565: the matching board reference uses nominal 48 MHz
+# PCLK.  Target 50 MHz internally; external I/O delay budgets remain open.
+# Evidence: verification/timing_audit/TIMING_CONSTRAINT_AUDIT.md.
+create_clock -name {cam_pclk} [get_ports {cam_pclk}] -period {20} -waveform {0 10}
+# HSST ref is 125 MHz; the CH2 3.125-Gbps/32-bit fabric is 78.125 MHz.
+create_clock -name {hsst_refclk} [get_ports {i_p_refckp_1}] -period {8} -waveform {0 4}
+create_clock -name {hsst_tx_fabric} [get_pins {u_hsst/u_hsst_test/o_p_clk2core_tx_2}] -period {12.8} -waveform {0 6.4}
+# The descriptor/RAM and bank-return FIFOs are intentional CDC boundaries;
+# Both SCCB/I2C driver clocks are divided from the system clock.
+set_clock_groups -asynchronous -group [get_clocks {sys_clk i2c_sys_clk i2c_dri_clk cam_sccb_dri_clk f14_clk75}] -group [get_clocks {hdmi_clk_in}] -group [get_clocks {cam_pclk}] -group [get_clocks {hsst_tx_fabric}]

@@ -1,0 +1,6 @@
+# NAV-only increment on isp_dual_control_20261023. UART removed.
+# Existing return-mailbox wildcard covers 124 bits; original low 59 bits unchanged.
+set_false_path -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.reg_toggle}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.reg_toggle_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.reg_ack_toggle}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.reg_ack_sync[*]}]
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.reg_payload[*]}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.command_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.reg_payload[*]}] -to [get_cells -hierarchical {*hud_ext_control_cdc_Inst_nav.command_o[*]}]

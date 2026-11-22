@@ -1,0 +1,42 @@
+# PG2L100H-6FBG676 PCIe external RAM placement, 2026-10-21.
+# Source: the board vendor PCIe example's successful PNR database.
+# Exported with PDS 2022.2-SP6.4 generate_constraint -db/-devmap_db.
+# Preserve the official RAM interface latency. No clock/path exceptions.
+# Only these 13 DRM18K primitives and four reset registers are constrained.
+# PAP_LOC uses a physical site and, for RAM, the DRM0/DRM1 half-site.
+
+# Receive data RAM: 1024 x 72, four DRM18K primitives; only DATA_LOOP[0]/[1] fixed.
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exrcvdata_rams.U_ipm2l_sdpram_rcv_data_ram.ADDR_LOOP[0].DATA_LOOP[0].U_GTP_DRM18K_E1} {PAP_LOC} {DRM_322_858:DRM0}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exrcvdata_rams.U_ipm2l_sdpram_rcv_data_ram.ADDR_LOOP[0].DATA_LOOP[1].U_GTP_DRM18K_E1} {PAP_LOC} {DRM_298_948:DRM1}
+# 2026-10-28: release only DATA_LOOP[2]/[3] to the timing-driven placer.
+# Current PNR: DATA_LOOP[3] -> PCIE_315_918 data[60], route 2.831ns, slack -0.247ns.
+# Passing 2026-10-25 PNR used the same DRM_322_1104 site; data[56] route 2.447ns.
+# Official PG2L100H clk_region_info has no DRM_322_918..1038 sites.
+# Read-only current PNR export shows free halves DRM_298_1038:DRM0 and
+# DRM_298_1074:DRM1; leave the placer free to choose/rearrange real legal sites.
+# Evidence: verification/pcie_arm_timing/pcie_site_occupancy.json.
+# Coordinate distance alone does not prove routing delay; recheck new PNR STA.
+# define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exrcvdata_rams.U_ipm2l_sdpram_rcv_data_ram.ADDR_LOOP[0].DATA_LOOP[2].U_GTP_DRM18K_E1} {PAP_LOC} {DRM_322_1104:DRM0}
+# define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exrcvdata_rams.U_ipm2l_sdpram_rcv_data_ram.ADDR_LOOP[0].DATA_LOOP[3].U_GTP_DRM18K_E1} {PAP_LOC} {DRM_322_1104:DRM1}
+
+# Receive header RAM: 512 x 144; DATA_LOOP[3] is deliberately unpinned.
+# Let the timing-driven placer choose its site; other RAM latency is unchanged.
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exrcvhdr_rams.U_ipm2l_sdpram_rcv_header_ram.ADDR_LOOP[0].DATA_LOOP[0].U_GTP_DRM18K_E1} {PAP_LOC} {DRM_298_888:DRM0}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exrcvhdr_rams.U_ipm2l_sdpram_rcv_header_ram.ADDR_LOOP[0].DATA_LOOP[1].U_GTP_DRM18K_E1} {PAP_LOC} {DRM_298_948:DRM0}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exrcvhdr_rams.U_ipm2l_sdpram_rcv_header_ram.ADDR_LOOP[0].DATA_LOOP[2].U_GTP_DRM18K_E1} {PAP_LOC} {DRM_322_888:DRM0}
+
+# Retry RAM: 2048 x 72, eight DRM18K primitives.
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[0].U_GTP_DRM18K} {PAP_LOC} {DRM_322_888:DRM1}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[1].U_GTP_DRM18K} {PAP_LOC} {DRM_322_1134:DRM0}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[2].U_GTP_DRM18K} {PAP_LOC} {DRM_298_1008:DRM1}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[3].U_GTP_DRM18K} {PAP_LOC} {DRM_298_1008:DRM0}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[4].U_GTP_DRM18K} {PAP_LOC} {DRM_298_1074:DRM0}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[5].U_GTP_DRM18K} {PAP_LOC} {DRM_298_978:DRM0}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[6].U_GTP_DRM18K} {PAP_LOC} {DRM_322_858:DRM1}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.pcie2_iip_exretry_rams.U_ipml_spram_retry_data_ram.ADDR_LOOP[0].DATA_LOOP[7].U_GTP_DRM18K} {PAP_LOC} {DRM_298_1038:DRM1}
+
+# Keep both stages local; leave FF sub-slot selection to the mapper/placer.
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.mem_button_rstn_sync.sig_async_ff} {PAP_LOC} {CLMA_285_966}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.mem_button_rstn_sync.sig_synced} {PAP_LOC} {CLMA_285_966}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.core_rst_n_mem_r1} {PAP_LOC} {CLMA_291_906}
+define_attribute {i:u_pcie_top.u_pcie_dma_subsystem.u_pcie_ip.U_IPS2L_PCIE_TOP.U_IPS2L_PCIE_HARD_CTRL.core_rst_n_mem} {PAP_LOC} {CLMA_291_906}

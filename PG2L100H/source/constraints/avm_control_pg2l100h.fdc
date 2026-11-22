@@ -1,0 +1,22 @@
+# Flash-reader build: UDP LUT loader generate branch is disabled by C_FLASH_ENABLE=1. Its six UDP mailbox CDC exceptions are in the compatibility FDC but have no matching cells and are intentionally omitted here; all applicable AVM/DDR CDC constraints below remain. The Ethernet route/algo/video constraints are retained in their source FDCs.
+# AVM fixed-LUT upload mailbox. Payloads are held until a return handshake.
+# Only toggle first-stage sampling is asynchronous; second stages stay timed.
+# Frame tokens are stable through the corresponding output frame.
+set_false_path -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.frame_toggle}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.frame_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.prepared_toggle}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.prepared_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*algo_pixel_reset_sync[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.pixel_alive_sync[*]}]
+# Disabled: frame-ID CDC constraints are obsolete after prepared token acceptance was made frame-safe.
+# set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.pixel_frame_id[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.descriptor_frame_id[*]}]
+# Disabled: frame-ID CDC constraints are obsolete after prepared token acceptance was made frame-safe.
+# set_false_path -hold -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.pixel_frame_id[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.descriptor_frame_id[*]}]
+# Disabled: frame-ID CDC constraints are obsolete after prepared token acceptance was made frame-safe.
+# set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.prepared_frame_hold[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.pixel_prepared_frame[*]}]
+# Disabled: frame-ID CDC constraints are obsolete after prepared token acceptance was made frame-safe.
+# set_false_path -hold -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.prepared_frame_hold[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.pixel_prepared_frame[*]}]
+set_false_path -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.reg_fifo_rd_rst_meta *avm_video_subsystem_Inst_avm.u_fifo.reg_pixel_reset_ack_meta *avm_video_subsystem_Inst_avm.u_fifo.reg_measure_enable_meta}]
+set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.wptr[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.rwptr1[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.wptr[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.rwptr1[*]}]
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.rptr[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.wrptr1[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.rptr[*]}] -to [get_cells -hierarchical {*avm_video_subsystem_Inst_avm.u_fifo.u_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_avm_ddr_to_hdmi_fifo.U_ipm2l_fifo_ctrl.ASYN_CTRL.wrptr1[*]}]
+
+

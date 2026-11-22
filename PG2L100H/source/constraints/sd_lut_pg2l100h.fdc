@@ -1,0 +1,63 @@
+# PG2L100H-6FBG676 SD SPI validation constraints.
+# Sources: PG2L100H T1: 27 MHz D18, KEY0 C22 (active low), USB-UART TX C24,
+# MicroSD CLK F19/CMD H14/D0 F18/D3 H15.
+# I/O delay values are conservative provisional budgets pending card/PCB timing.
+# sys_clk is created by ethernet_hdmi_pg2l100h.fdc; reuse that board clock.
+define_attribute {p:i_sys_clk} {PAP_IO_DIRECTION} {INPUT}
+define_attribute {p:i_sys_clk} {PAP_IO_LOC} {D18}
+define_attribute {p:i_sys_clk} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:i_sys_clk} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:i_button_rst_n} {PAP_IO_DIRECTION} {INPUT}
+define_attribute {p:i_button_rst_n} {PAP_IO_LOC} {C22}
+define_attribute {p:i_button_rst_n} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:i_button_rst_n} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:i_sd_miso} {PAP_IO_DIRECTION} {INPUT}
+define_attribute {p:i_sd_miso} {PAP_IO_LOC} {F18}
+define_attribute {p:i_sd_miso} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:i_sd_miso} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:o_sd_clk} {PAP_IO_DIRECTION} {OUTPUT}
+define_attribute {p:o_sd_clk} {PAP_IO_LOC} {F19}
+define_attribute {p:o_sd_clk} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:o_sd_clk} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:o_sd_mosi} {PAP_IO_DIRECTION} {OUTPUT}
+define_attribute {p:o_sd_mosi} {PAP_IO_LOC} {H14}
+define_attribute {p:o_sd_mosi} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:o_sd_mosi} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:o_sd_cs} {PAP_IO_DIRECTION} {OUTPUT}
+define_attribute {p:o_sd_cs} {PAP_IO_LOC} {H15}
+define_attribute {p:o_sd_cs} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:o_sd_cs} {PAP_IO_STANDARD} {LVCMOS33}
+define_attribute {p:o_uart_tx} {PAP_IO_DIRECTION} {OUTPUT}
+define_attribute {p:o_uart_tx} {PAP_IO_LOC} {C24}
+define_attribute {p:o_uart_tx} {PAP_IO_VCCIO} {3.3}
+define_attribute {p:o_uart_tx} {PAP_IO_STANDARD} {LVCMOS33}
+# Reader drives SCLK/MOSI/CS and samples MISO in the single 27 MHz domain.
+# These are explicit provisional I/O budgets, not false paths.
+set_input_delay -clock {sys_clk} -min {0.000} [get_ports {i_sd_miso}]
+set_input_delay -clock {sys_clk} -max {18.000} [get_ports {i_sd_miso}]
+set_output_delay -clock {sys_clk} -min {0.000} [get_ports {o_sd_clk o_sd_mosi o_sd_cs}]
+set_output_delay -clock {sys_clk} -max {18.000} [get_ports {o_sd_clk o_sd_mosi o_sd_cs}]
+# 稳定数据mailbox使用请求/确认握手；多位hold总线在目标域两拍后捕获，
+# 不以27MHz和DDR125MHz的相位关系计时。仅切除这些明确CDC边界，
+# 不切除mailbox内部DDR域或SD域的同步器路径。
+set_false_path -from [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_data_hold[*]}] -to [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/avm_sd_beat_mailbox_Inst_sd/data_o[*]}]
+set_false_path -from [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_address_hold[*]}] -to [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/avm_sd_beat_mailbox_Inst_sd/address_o[*]}]
+set_false_path -from [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/avm_sd_beat_mailbox_Inst_sd/ack_o}] -to [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_ack_meta}]
+set_false_path -from [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_request}] -to [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/avm_sd_beat_mailbox_Inst_sd/reg_request_meta}]
+set_false_path -from [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/flag_sd_done}] -to [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_done_meta}]
+set_false_path -from [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_sd_error[*]}] -to [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_error_meta}]
+# DDR 会话控制异步清零 SD 域的两级释放链。只豁免其 C 管脚，D 链和业务复位仍计时。
+set_false_path -from [get_cells -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_session_active}] -to [get_pins -hierarchical {*avm_lut_sd_loader_Inst_avm/reg_sd_reset_sync[*]/C}]
+# KEY0 全局例外暂保留；以太网仍直接使用异步复位，不能仅靠收窄约束修改行为。
+set_false_path -from [get_ports {i_button_rst_n}]
+# Low-frequency board outputs: explicit 4 mA drive, slow slew; MISO/KEY0 pull-up.
+define_attribute {p:o_sd_clk} {PAP_IO_DRIVE} {4}
+define_attribute {p:o_sd_clk} {PAP_IO_SLEW} {SLOW}
+define_attribute {p:o_sd_mosi} {PAP_IO_DRIVE} {4}
+define_attribute {p:o_sd_mosi} {PAP_IO_SLEW} {SLOW}
+define_attribute {p:o_sd_cs} {PAP_IO_DRIVE} {4}
+define_attribute {p:o_sd_cs} {PAP_IO_SLEW} {SLOW}
+define_attribute {p:o_uart_tx} {PAP_IO_DRIVE} {4}
+define_attribute {p:o_uart_tx} {PAP_IO_SLEW} {SLOW}
+define_attribute {p:i_button_rst_n} {PAP_IO_PULLUP} {TRUE}
+define_attribute {p:i_sd_miso} {PAP_IO_PULLUP} {TRUE}

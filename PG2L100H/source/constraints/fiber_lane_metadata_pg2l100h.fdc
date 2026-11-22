@@ -1,0 +1,31 @@
+# LANE-META-V1独立快照CDC。PDS逻辑FDC导入时向量尚未位拆分，
+# 同步向量用[*]定位聚合对象；跨域发起寄存器只直连该链第一级D，
+# 第二级D由同域第一级驱动，仍正常计时。禁止整时钟域false_path。
+set_false_path -from [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.src_toggle}] -to [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.dst_toggle_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.dst_seen}] -to [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.src_ack_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.dst_reset_sync[*]}] -to [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.src_online_sync[*]}]
+# 64bit数据在请求/应答期间保持；限到一个27MHz目的时钟周期。
+set_max_delay 37.037 -datapath_only -from [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.src_payload[*]}] -to [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.dst_payload_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.src_payload[*]}] -to [get_cells -hierarchical {*u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.dst_payload_o[*]}]
+
+# 系统快照到PCIe只读窗口；不使用PCIe link去复位光纤接收器。
+set_false_path -from [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.src_toggle}] -to [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.dst_toggle_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.dst_seen}] -to [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.src_ack_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.dst_reset_sync[*]}] -to [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.src_online_sync[*]}]
+set_max_delay 8.000 -datapath_only -from [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.src_payload[*]}] -to [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.dst_payload_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.src_payload[*]}] -to [get_cells -hierarchical {*u_fiber_lane_status_cdc.u_status_mailbox.dst_payload_o[*]}]
+
+# 只豁免异步断言的释放链clear pin；业务复位及D路径仍计时。
+set_false_path -to [get_pins -hierarchical {*u_video_sources_top.fiber_meta_reset_sync*.C}]
+set_false_path -to [get_pins -hierarchical {*u_fiber_lane_snapshot_cdc.reg_rx_reset_sync*.C *u_fiber_lane_snapshot_cdc.reg_sys_reset_sync*.C *u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.src_reset_sync*.C *u_fiber_lane_snapshot_cdc.vehicle_behavior_action_cdc_Inst_snapshot.dst_reset_sync*.C *u_fiber_lane_status_cdc.u_status_mailbox.src_reset_sync*.C *u_fiber_lane_status_cdc.u_status_mailbox.dst_reset_sync*.C}]
+
+# 独立 HSST 车道显示：27MHz 系统域到 74.25MHz 像素域，不依赖 PCIe。
+# 仅发起寄存器到相应同步链的跨域路径例外，同域后续级保持正常计时。
+set_false_path -from [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.src_toggle}] -to [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.dst_toggle_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.dst_seen}] -to [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.src_ack_sync[*]}]
+set_false_path -from [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.dst_reset_sync[*]}] -to [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.src_online_sync[*]}]
+# 五位 payload 在握手期间稳定，限制到一个目的像素周期；不豁免 setup 上界。
+set_max_delay 13.468 -datapath_only -from [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.src_payload[*]}] -to [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.dst_payload_o[*]}]
+set_false_path -hold -from [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.src_payload[*]}] -to [get_cells -hierarchical {*fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.dst_payload_o[*]}]
+# 仅异步断言/同步释放链的 clear pin，不覆盖分类/显示业务寄存器 D 或恢复路径。
+set_false_path -to [get_pins -hierarchical {*fiber_lane_hud_cdc_Inst_lane.reg_sys_reset_sync*.C *fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.src_reset_sync*.C *fiber_lane_hud_cdc_Inst_lane.vehicle_behavior_action_cdc_Inst_lane_display.dst_reset_sync*.C}]

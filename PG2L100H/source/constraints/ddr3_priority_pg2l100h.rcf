@@ -1,0 +1,67 @@
+# Logos2 HMIC_S 1.12 generated DDR priority routing, hierarchy adapted only.
+# Source: official createFiles.tcl lines 563-571 and board ddr3_test.rcf.
+# UG042003, section 2.8.5: custom projects must load the generated RCF.
+# These rules prioritize PPLL clock gate control nets; STA remains unchanged.
+
+# 2026-11-01 HUD版最终STA：phy_wrdata_d[75]到DQ1 TX_DATA[3]为-0.014ns。
+# 该源网fanout=4、route=3.359ns；仅优先源网，不改变共享adj_wrdq尾段。
+# 不改变时钟/相位/uncertainty/MCP2；保留完整多角setup与hold修复检查。
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/phy_wrdata [75]}
+
+# 后续STA剩余group1/group3的TS_CTRL setup，最差-0.009ns。
+# 优先实测phy_wrdata_en源网，不调整共享adj_wrdqs_en尾段；原生hold继续检查。
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/phy_wrdata_en [0]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/phy_wrdata_en [1]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_ioclk_gate [0]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_ioclk_gate [1]}
+
+# 2026-10-28 balanced CA routing: keep four flag nets and their shared OR.
+# Actual this_group_ca_dly FF output aliases are debug_data[66+69*g].
+# These are live DDR PHY controls, not removable debug/UART probes.
+# The completed 23:07 implementation improved sys->DQ0 setup to +1.957 ns,
+# but shared adj_addr[77]/[40]/[0]/[72] tails became too short for other sources:
+# five native fast hold failures, WNS -0.249 ns; one slow hold -0.080 ns.
+# Remove all four shared-tail priorities and retain only the source/OR repair.
+# The five affected endpoints now have native slow setup >= +3.304 ns, allowing
+# the router to restore hold delay without demanding shortest CA output tails.
+# Positive margins below describe the measured old graph, not the next routing.
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/debug_data [66]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/debug_data [135]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/debug_data [204]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/debug_data [273]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/all_group_ca_dly}
+
+# DQ1 setup repair: g0 ck_dqs_diff[1] packed FF has two real output aliases.
+# debug_data[67] (L5Q, fanout 81) -> DM[1] has native slow setup -0.619 ns;
+# the source net alone costs 3.789 ns before its mux (tail costs 2.784 ns).
+# debug_data[68] (L6Q, fanout 84) -> the same DM[1] has setup -0.016 ns.
+# Prioritize these calibration-source nets instead of the common DM mux tails:
+# the other phy_wrdata_mask_r[2] sources have only +0.322..+0.490 ns fast hold.
+# Measured native fast hold on the two source nets is positive, with minima
+# +0.286/+0.227 ns (internal feedback). Their other branches retain real hold
+# risk when rerouted; positive old margins do NOT guarantee new max/min timing.
+# Use ordinary multi-corner hold repair and verify every native corner after PNR.
+# Exact real Map net names include the space before [bit].
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/i_dqs_group[0].ddrphy_data_slice/debug_data [67]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/i_dqs_group[0].ddrphy_data_slice/debug_data [68]}
+
+# Baseline: two official gates, five CA source/OR nets, two DQ1 source nets = nine.
+# The nine baseline rules remain alongside the three measured source priorities above. The extra
+# group3 adj_wrdq_en[5] priority used by close3 made DQ0 fast hold negative.
+# RCE User Guide v2.0 sections 3.2.2 and 5.2: priority sets routing order only.
+# Preserve native clocks, phase, uncertainty, MCP2, hold checks and hold fix.
+
+# Peripheral precision baseline: nine rules plus three HUD source priorities above.
+# Removed failed group3 tail-priority experiments. All native STA retained.
+
+# 2026-11-01 video-repair v2: measured slow setup failures on three data
+# source nets (seed0 -0.021ns, seed1 -0.016ns, route99 -0.034ns).
+# Prioritize only the measured FF source nets; keep the shared adj_wrdq
+# mux tails under normal routing/hold repair. No timing budgets are changed.
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/phy_wrdata [140]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/phy_wrdata [72]}
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/phy_wrdata [104]}
+
+# The following completed run left only source [8] at -0.002ns slow setup.
+# Add its actual merged-FF output alias; keep the common adj_wrdq[3] tail normal.
+def_route -prior_net {u_frame_buffer_top/u_ddr3_subsystem/I_ips_ddr_top/u_ddrphy_top/phy_wrdata [8]}
