@@ -1,21 +1,38 @@
 # Pango 双 FPGA 视频处理与车道感知
 
-两块 Pango Logos2 FPGA 开发板通过 HSST 光纤协作：**正点原子 PG2L200H** 采集视频、运行车道推理并发送结果；**小眼睛科技 PG2L100H** 汇集光纤和其他三路视频，提供环视显示与 PCIe 视频采集。
-
-[板卡与工程](#板卡与工程) · [系统数据流](#系统数据流) · [构建与依赖](#构建与依赖) · [联调与排查](#联调与排查) · [发布检查](#发布检查)
+本项目是一套双 FPGA 视频处理与车道感知平台。**小眼睛科技 PG2L100H（盘古 100Pro+）** 汇集以太网、OV5640、HSST 光纤和 HDMI 四路视频，经 DDR3 缓存后输出 HDMI 环视画面，并通过 PCIe DMA 向 RK3566 Linux 主机提供采集画面。**正点原子 PG2L200H** 负责采集和车道推理，通过 HSST 光纤发回视频和推理结果。
 
 ![Pango 双 FPGA 视频系统实物与显示设备](docs/images/dual-fpga-bench.jpg)
 
-*双 FPGA 视频系统联调台实拍。*
+*双 FPGA 视频系统联调台实拍，仅展示硬件布置，不作为当前提交的验收记录。*
+
+[板卡与工程](#板卡与工程) · [Windows 以太网上位机](#windows-以太网上位机) · [系统数据流](#系统数据流) · [构建与依赖](#构建与依赖) · [联调与排查](#联调与排查) · [FPGA 资源使用量](#fpga-资源使用量) · [发布检查](#发布检查)
 
 ## 板卡与工程
 
 | 开发板（厂商） | PDS 目标器件 | 打开工程 | 阅读顶层 |
 | --- | --- | --- | --- |
-| **正点原子（ALIENTEK）** PG2L200H | `PG2L200H-6FBB484` | [PG2L200H_PRJ.pds](PG2L200H/PG2L200H_PRJ.pds) | [host_hdmi_to_fiber_top.v](PG2L200H/host/rtl/host_hdmi_to_fiber_top.v) |
 | **小眼睛科技** 盘古 100Pro+（`MES2L676-100HP`） | `PG2L100H-6FBG676` | [PG2L100H_PRJ.pds](PG2L100H/PG2L100H_PRJ.pds) | [top_design.v](PG2L100H/source/top_design.v) |
+| **正点原子（ALIENTEK）** PG2L200H | `PG2L200H-6FBB484` | [PG2L200H_PRJ.pds](PG2L200H/PG2L200H_PRJ.pds) | [host_hdmi_to_fiber_top.v](PG2L200H/host/rtl/host_hdmi_to_fiber_top.v) |
 
 两份工程的参考环境均为 **PDS 2025.2 build 211867**，综合工具配置为 `ads`。两块板的引脚、时钟、外设初始化和生成 IP 不可混用，位流也不能互换。
+
+## Windows 以太网上位机
+
+**下载：[PG2L200H_V013_SerialSource.exe](https://github.com/CMCCNIKO/Pango_file/releases/download/windows-ethernet-host-v013/PG2L200H_V013_SerialSource.exe)** · [V013 发布说明](https://github.com/CMCCNIKO/Pango_file/releases/tag/windows-ethernet-host-v013)。下载需要有本私有仓库的访问权限。
+
+V013 为 Windows 单文件程序，保留以太网视频发送、预览与 ISP 控制。`SerialSource` 指另带的 PG2L200H 串口切源功能，不表示视频走串口。
+
+| 连接 | 用途 | 默认设置 |
+| --- | --- | --- |
+| Windows → 以太网 → **小眼睛科技 PG2L100H** | 向 `source0` 发送 PGV1 视频、发送控制命令并接收应答 | FPGA `192.168.1.11`，视频 UDP `5000`，控制 UDP `5002`；应答发往 Windows `192.168.1.105:5001` |
+| Windows → USB 串口 → **正点原子 PG2L200H** | 切换该板 HDMI / OV5640 输入，需匹配的 FPGA 固件 | `COM6`、`115200`、`8N1`，按实际连接选择 COM 口；不依赖网口 |
+| **PG2L100H** → PCIe DMA → **RK3566** | 从 FPGA 采集视频，不使用此 EXE | 使用[配套仓库的 Linux 驱动与采集程序](https://github.com/CMCCNIKO/PG2L100H-PCIe-RK3566/tree/main/PG2L100H_RX_ETW_HDMI_OV5640_HSST/host/pcie_video) |
+
+使用 [FPGA 默认网络参数](PG2L100H/source/top_design.v#L42-L49) 时，Windows 有线网卡设为 `192.168.1.105/24`，上位机目标设为 `192.168.1.11`，分别核对视频发送和控制应答。本次仅同步上位机发布包，未重新对本仓库的位流做逐项实板联调。
+
+- 文件大小：`293,441,701` 字节
+- SHA-256：`C637912C530BA05B0292A185B5467AA64D333C44197E8314A59121A02DD04AB6`
 
 ## 系统数据流
 
@@ -110,6 +127,51 @@
 | UART 选源没有应答 | PG2L200H 保留串口选源服务，但当前 PG2L100H 顶层没有接入选源发送逻辑，`o_uart_tx` 固定为高电平。仅连接两板不会自动发送选源命令；测试选源需要匹配电平和协议的独立控制端。 |
 | 本地画面正常，其他源缺画面 | 按 PG2L100H 四路输入表核对 `source0` 至 `source3`。网口源需要 PGV1 数据，不是任意 UDP 视频；光纤源可分开查 HSST 链路、视频组帧和元数据解析。 |
 | HDMI 有输出，但没有环视 | 先区分当前输出是默认监视合成还是四宫格诊断，再确认 DDR3 初始化和 SD 卡 LUT 装载状态；不要用 PCIe 画面判断 AVM/HUD 是否工作。 |
+
+## FPGA 资源使用量
+
+下表只列 **最终布局布线及路由优化后** 的数据，来源为各自的历史实现日志，使用 PDS `2025.2`（build `211867`）。LUT、FF 合计按 CLMA 和 CLMS 的已用量及可用量求和，百分比重新计算；其他百分比保留 PDS 报表的整数值。`DRM(grid)` 指物理块占用，不能与其他版本工具按逻辑块统计的 DRM 值直接换算。
+
+### 小眼睛科技 PG2L100H
+
+盘古 100Pro+（`MES2L676-100HP`），`PG2L100H-6FBG676`，顶层 `top_design`。来源：**2026-11-16 V030**（ISP / 去雾连续性）[最终路由优化日志摘录](docs/evidence/post-route-utilization.md#pg2l100h-v030)。这不是配套 `PG2L100H-PCIe-RK3566` 仓库的 PDS 2022.2 版实现。
+
+| 资源 | 已用 / 器件可用 | 占用率 |
+| --- | ---: | ---: |
+| LUT（CLMA + CLMS） | 60,477 / 66,600 | 90.81%（计算值） |
+| FF（CLMA + CLMS） | 82,381 / 133,200 | 61.85%（计算值） |
+| CLMA | 11,586 / 11,675 | 100% |
+| CLMS | 4,937 / 4,975 | 100% |
+| DRM（物理块） | 144 / 155 | 93% |
+| APM | 40 / 240 | 17% |
+| I/O | 180 / 300 | 60% |
+| DDR_PHY | 7 / 24 | 30% |
+| PCIe 硬核 | 1 / 1 | 100% |
+| HSSTLP lane | 5 / 8 | 63% |
+| GPLL | 3 / 6 | 50% |
+| PPLL | 2 / 6 | 34% |
+| BKCL | 6 / 6 | 100% |
+
+CLMA、CLMS 的 `100%` 为 PDS 报表的整数显示，以已用和可用计数为准。扩展逻辑或片上缓存前，应重新核对这两类逻辑块和 DRM 余量。
+
+### 正点原子 PG2L200H
+
+`PG2L200H-6FBB484`，顶层 `host_hdmi_to_fiber_top`。来源：**2026-11-15 V011**（无本地 HDMI 输出）[最终路由优化日志摘录](docs/evidence/post-route-utilization.md#pg2l200h-v011)。
+
+| 资源 | 已用 / 器件可用 | 占用率 |
+| --- | ---: | ---: |
+| LUT（CLMA + CLMS） | 62,221 / 159,800 | 38.94%（计算值） |
+| FF（CLMA + CLMS） | 65,056 / 319,600 | 20.36%（计算值） |
+| CLMA | 15,064 / 30,075 | 51% |
+| CLMS | 4,202 / 9,875 | 43% |
+| DRM（物理块） | 386 / 415 | 94% |
+| APM | 350 / 740 | 48% |
+| I/O | 52 / 285 | 19% |
+| HSSTLP lane | 1 / 4 | 25% |
+| GPLL | 1 / 10 | 10% |
+| BKCL | 4 / 10 | 40% |
+
+这两张表不包含器件映射阶段的数字，也不作为当前检出版本仿真、时序闭合或实板联调通过的证明。
 
 ## 发布检查
 
